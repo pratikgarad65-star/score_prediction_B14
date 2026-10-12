@@ -1,250 +1,190 @@
 import os
 import pickle
 import numpy as np
-from flask import Flask, request, render_template_string
+import streamlit as st
 
-app = Flask(__name__)
+# Configure page settings
+st.set_page_config(
+    page_title="Student Performance Predictor",
+    page_icon="🎓",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Load the KNN Regressor model
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "knnRe.pkl")
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+# Custom CSS for modern layout and box-shadow styling
+st.markdown("""
+<style>
+    /* Main background adjustment */
+    .stApp {
+        background-color: #0e1117;
+        color: #f8fafc;
+    }
 
-# Features expected by knnRe.pkl in strict order
-FEATURE_ORDER = [
-    "age",
-    "gender",
-    "course",
-    "study_hours",
-    "class_attendance",
-    "internet_access",
-    "sleep_hours",
-    "sleep_quality",
-    "study_method",
-    "facility_rating",
-    "exam_difficulty",
-]
+    /* Top header styling */
+    .hero-header {
+        text-align: center;
+        padding: 1.5rem 0 2rem 0;
+    }
+    .hero-header h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 0.25rem;
+    }
+    .hero-header p {
+        font-size: 1rem;
+        color: #94a3b8;
+    }
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KNN Performance Predictor</title>
-    <style>
-        :root {
-            --bg: #0b0f19;
-            --surface: #151c2e;
-            --border: #232d45;
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --success: #10b981;
-            --error: #ef4444;
-        }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem 1rem;
-        }
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            width: 100%;
-            max-width: 720px;
-            padding: 2.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
-        }
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        header h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-        }
-        header p {
-            color: var(--text-sub);
-            font-size: 0.95rem;
-            margin-top: 0.4rem;
-        }
-        form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1.25rem;
-        }
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-        .full-width {
-            grid-column: 1 / -1;
-        }
-        label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background: #0d1220;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            color: var(--text-main);
-            font-size: 0.95rem;
-            transition: border-color 0.15s ease;
-        }
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-        button {
-            padding: 0.85rem 1.5rem;
-            background: var(--primary);
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background 0.15s ease;
-            margin-top: 0.5rem;
-        }
-        button:hover {
-            background: var(--primary-hover);
-        }
-        .result {
-            margin-top: 2rem;
-            padding: 1.25rem;
-            border-radius: 0.5rem;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid var(--success);
-            text-align: center;
-        }
-        .result span {
-            display: block;
-            margin-top: 0.25rem;
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--success);
-        }
-        .error {
-            margin-top: 2rem;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--error);
-            color: #fca5a5;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <header>
-            <h1>Student Score Predictor</h1>
-            <p>KNN Regression inference model</p>
-        </header>
+    /* Custom container cards with multi-layered drop shadows */
+    .custom-card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 
+                    0 2px 4px -2px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .custom-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 
+                    0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    }
+    .card-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid #334155;
+        padding-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-        <form action="/" method="POST">
-            <div class="field">
-                <label for="age">Age</label>
-                <input type="number" step="any" id="age" name="age" required value="{{ request.form.get('age', '') }}" placeholder="e.g. 19">
-            </div>
-            <div class="field">
-                <label for="gender">Gender (Numeric)</label>
-                <input type="number" step="any" id="gender" name="gender" required value="{{ request.form.get('gender', '') }}" placeholder="0 or 1">
-            </div>
-            <div class="field">
-                <label for="course">Course (Numeric)</label>
-                <input type="number" step="any" id="course" name="course" required value="{{ request.form.get('course', '') }}" placeholder="e.g. 1">
-            </div>
-            <div class="field">
-                <label for="study_hours">Study Hours / Week</label>
-                <input type="number" step="any" id="study_hours" name="study_hours" required value="{{ request.form.get('study_hours', '') }}" placeholder="e.g. 15.0">
-            </div>
-            <div class="field">
-                <label for="class_attendance">Class Attendance (%)</label>
-                <input type="number" step="any" id="class_attendance" name="class_attendance" required value="{{ request.form.get('class_attendance', '') }}" placeholder="0 - 100">
-            </div>
-            <div class="field">
-                <label for="internet_access">Internet Access</label>
-                <input type="number" step="any" id="internet_access" name="internet_access" required value="{{ request.form.get('internet_access', '') }}" placeholder="0 or 1">
-            </div>
-            <div class="field">
-                <label for="sleep_hours">Sleep Hours</label>
-                <input type="number" step="any" id="sleep_hours" name="sleep_hours" required value="{{ request.form.get('sleep_hours', '') }}" placeholder="e.g. 7.5">
-            </div>
-            <div class="field">
-                <label for="sleep_quality">Sleep Quality Rating</label>
-                <input type="number" step="any" id="sleep_quality" name="sleep_quality" required value="{{ request.form.get('sleep_quality', '') }}" placeholder="Scale rating">
-            </div>
-            <div class="field">
-                <label for="study_method">Study Method (Numeric)</label>
-                <input type="number" step="any" id="study_method" name="study_method" required value="{{ request.form.get('study_method', '') }}" placeholder="e.g. 1">
-            </div>
-            <div class="field">
-                <label for="facility_rating">Facility Rating</label>
-                <input type="number" step="any" id="facility_rating" name="facility_rating" required value="{{ request.form.get('facility_rating', '') }}" placeholder="Scale rating">
-            </div>
-            <div class="field full-width">
-                <label for="exam_difficulty">Exam Difficulty (Numeric)</label>
-                <input type="number" step="any" id="exam_difficulty" name="exam_difficulty" required value="{{ request.form.get('exam_difficulty', '') }}" placeholder="Scale rating">
-            </div>
+    /* Prediction Result Banner */
+    .result-card {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(16, 185, 129, 0.15));
+        border: 1px solid #10b981;
+        border-radius: 12px;
+        padding: 1.75rem;
+        text-align: center;
+        margin-top: 1rem;
+        box-shadow: 0 12px 20px -5px rgba(16, 185, 129, 0.25);
+    }
+    .result-title {
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+        font-weight: 600;
+    }
+    .result-value {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #10b981;
+        margin: 0.5rem 0;
+    }
 
-            <button type="submit" class="full-width">Calculate Score</button>
-        </form>
+    /* Button shadow */
+    div.stButton > button:first-child {
+        background-color: #4f46e5;
+        color: white;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+        transition: all 0.2s ease;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #4338ca;
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+        transform: translateY(-1px);
+    }
+</style>
+""", unsafe_allow_html=True)
 
-        {% if prediction is not none %}
-        <div class="result">
-            <div>Predicted Outcome</div>
-            <span>{{ "%.2f"|format(prediction) }}</span>
+# Load the model with caching
+@st.cache_resource
+def load_model():
+    model_path = os.path.join(os.path.dirname(__file__), "knnRe.pkl")
+    with open(model_path, "rb") as f:
+        return pickle.load(f)
+
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Failed to load `knnRe.pkl`: {e}")
+    st.stop()
+
+# Header
+st.markdown("""
+<div class="hero-header">
+    <h1>Student Score Predictor</h1>
+    <p>Estimate academic performance using your K-Nearest Neighbors Regression model</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Main Form organized into clean UI columns and cards
+with st.form("prediction_form"):
+    col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
+
+    with col1:
+        st.markdown('<div class="custom-card"><div class="card-title">👤 Demographics & Course</div>', unsafe_allow_html=True)
+        age = st.number_input("Age", min_value=10.0, max_value=100.0, value=20.0, step=1.0)
+        gender = st.number_input("Gender (Encoded Value)", min_value=0.0, max_value=10.0, value=1.0, step=1.0, help="Numeric encoded gender (e.g. 0 or 1)")
+        course = st.number_input("Course (Encoded Value)", min_value=0.0, max_value=50.0, value=2.0, step=1.0, help="Numeric identifier for enrolled program")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="custom-card"><div class="card-title">📚 Study & Attendance</div>', unsafe_allow_html=True)
+        study_hours = st.number_input("Weekly Study Hours", min_value=0.0, max_value=120.0, value=15.0, step=0.5)
+        class_attendance = st.slider("Class Attendance (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
+        study_method = st.number_input("Study Method (Encoded Value)", min_value=0.0, max_value=10.0, value=1.0, step=1.0)
+        internet_access = st.selectbox("Internet Access", options=[(1.0, "Yes (1)"), (0.0, "No (0)")], format_func=lambda x: x[1])[0]
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col3:
+        st.markdown('<div class="custom-card"><div class="card-title">🌙 Lifestyle & Environment</div>', unsafe_allow_html=True)
+        sleep_hours = st.number_input("Average Sleep Hours", min_value=0.0, max_value=24.0, value=7.0, step=0.5)
+        sleep_quality = st.slider("Sleep Quality Rating", min_value=1.0, max_value=10.0, value=7.0, step=1.0)
+        facility_rating = st.slider("Facility Rating", min_value=1.0, max_value=10.0, value=8.0, step=1.0)
+        exam_difficulty = st.slider("Exam Difficulty", min_value=1.0, max_value=10.0, value=5.0, step=1.0)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    submit_btn = st.form_submit_button("Predict Score", use_container_width=True)
+
+# Inference and Display
+if submit_btn:
+    try:
+        # Features ordered exactly as expected by the trained model:
+        # ['age', 'gender', 'course', 'study_hours', 'class_attendance',
+        #  'internet_access', 'sleep_hours', 'sleep_quality', 'study_method',
+        #  'facility_rating', 'exam_difficulty']
+        input_data = np.array([[
+            float(age),
+            float(gender),
+            float(course),
+            float(study_hours),
+            float(class_attendance),
+            float(internet_access),
+            float(sleep_hours),
+            float(sleep_quality),
+            float(study_method),
+            float(facility_rating),
+            float(exam_difficulty)
+        ]], dtype=np.float64)
+
+        prediction = float(model.predict(input_data)[0])
+
+        st.markdown(f"""
+        <div class="result-card">
+            <div class="result-title">Predicted Performance Outcome</div>
+            <div class="result-value">{prediction:.2f}</div>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">Inference generated using KNeighborsRegressor</p>
         </div>
-        {% elif error %}
-        <div class="error">
-            {{ error }}
-        </div>
-        {% endif %}
-    </div>
-</body>
-</html>
-"""
+        """, unsafe_allow_html=True)
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    prediction = None
-    error = None
-
-    if request.method == "POST":
-        try:
-            features = [float(request.form[col]) for col in FEATURE_ORDER]
-            features_array = np.array([features], dtype=np.float64)
-            prediction = float(model.predict(features_array)[0])
-        except KeyError as e:
-            error = f"Missing feature value: {str(e)}"
-        except ValueError:
-            error = "Invalid format: All entries must be numeric."
-        except Exception as e:
-            error = f"Inference failure: {str(e)}"
-
-    return render_template_string(HTML_TEMPLATE, prediction=prediction, error=error)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    except Exception as err:
+        st.error(f"Inference error: {err}")
