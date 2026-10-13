@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 # Configure page settings
@@ -11,180 +12,171 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for modern layout and box-shadow styling
+# Custom Styling with Soft Shadows, Border-radius, and Cards
 st.markdown("""
-<style>
-    /* Main background adjustment */
-    .stApp {
-        background-color: #0e1117;
-        color: #f8fafc;
+    <style>
+    .main {
+        background-color: #fdfbf7;
     }
-
-    /* Top header styling */
-    .hero-header {
-        text-align: center;
-        padding: 1.5rem 0 2rem 0;
-    }
-    .hero-header h1 {
-        font-size: 2.25rem;
-        font-weight: 700;
-        color: #f8fafc;
-        margin-bottom: 0.25rem;
-    }
-    .hero-header p {
-        font-size: 1rem;
-        color: #94a3b8;
-    }
-
-    /* Custom container cards with multi-layered drop shadows */
+    
+    /* Modern card container with subtle shadow */
     .custom-card {
-        background: #1e293b;
-        border: 1px solid #334155;
+        background-color: #ffffff;
         border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 
-                    0 2px 4px -2px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
     }
-    .custom-card:hover {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 
-                    0 4px 6px -4px rgba(0, 0, 0, 0.4);
-    }
-    .card-title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: #e2e8f0;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid #334155;
-        padding-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    /* Prediction Result Banner */
-    .result-card {
-        background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(16, 185, 129, 0.15));
-        border: 1px solid #10b981;
-        border-radius: 12px;
-        padding: 1.75rem;
+    
+    /* Prediction output card */
+    .prediction-card {
+        background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+        border-radius: 14px;
+        padding: 30px;
+        color: white;
         text-align: center;
-        margin-top: 1rem;
-        box-shadow: 0 12px 20px -5px rgba(16, 185, 129, 0.25);
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        margin: 15px 0px 25px 0px;
     }
-    .result-title {
-        font-size: 0.95rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94a3b8;
-        font-weight: 600;
-    }
-    .result-value {
+    .metric-value {
         font-size: 3rem;
         font-weight: 800;
-        color: #10b981;
-        margin: 0.5rem 0;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
     }
-
-    /* Button shadow */
-    div.stButton > button:first-child {
-        background-color: #4f46e5;
-        color: white;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
-        transition: all 0.2s ease;
+    .metric-label {
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.9;
+        margin-bottom: 8px;
     }
-    div.stButton > button:first-child:hover {
-        background-color: #4338ca;
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
-        transform: translateY(-1px);
-    }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
-# Load the model with caching
+
 @st.cache_resource
-def load_model():
-    model_path = os.path.join(os.path.dirname(__file__), "knnRe.pkl")
+def load_knn_model(model_path="knn.pkl"):
+    """Load the pickled KNN regressor."""
+    if not os.path.exists(model_path):
+        return None
     with open(model_path, "rb") as f:
         return pickle.load(f)
 
-try:
-    model = load_model()
-except Exception as e:
-    st.error(f"Failed to load `knnRe.pkl`: {e}")
+
+model = load_knn_model("knn.pkl")
+
+# Header section
+st.title("🎓 Student Performance Predictor")
+st.markdown("Enter student characteristics below to estimate the final performance score.")
+st.write("---")
+
+if model is None:
+    st.error("⚠️ `knn.pkl` not found! Ensure the model file is placed in the exact same directory as `app.py`.")
     st.stop()
 
-# Header
-st.markdown("""
-<div class="hero-header">
-    <h1>Student Score Predictor</h1>
-    <p>Estimate academic performance using your K-Nearest Neighbors Regression model</p>
-</div>
-""", unsafe_allow_html=True)
+# --- INPUT SECTION ---
+# Sidebar Inputs
+with st.sidebar:
+    st.header("👤 Demographics & Program")
+    age = st.slider("Age", min_value=15, max_value=60, value=21, step=1)
+    
+    gender_choice = st.selectbox("Gender", ["Female", "Male", "Other"])
+    gender_map = {"Female": 0, "Male": 1, "Other": 2}
+    gender = gender_map[gender_choice]
+    
+    course_choice = st.selectbox(
+        "Course Stream", 
+        ["Computer Science", "Engineering", "Business", "Medicine", "Arts", "Science"]
+    )
+    course_map = {
+        "Computer Science": 0,
+        "Engineering": 1,
+        "Business": 2,
+        "Medicine": 3,
+        "Arts": 4,
+        "Science": 5
+    }
+    course = course_map[course_choice]
 
-# Main Form organized into clean UI columns and cards
-with st.form("prediction_form"):
-    col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
+    internet_access_choice = st.radio("Internet Access", ["Yes", "No"], horizontal=True)
+    internet_access = 1 if internet_access_choice == "Yes" else 0
 
-    with col1:
-        st.markdown('<div class="custom-card"><div class="card-title">👤 Demographics & Course</div>', unsafe_allow_html=True)
-        age = st.number_input("Age", min_value=10.0, max_value=100.0, value=20.0, step=1.0)
-        gender = st.number_input("Gender (Encoded Value)", min_value=0.0, max_value=10.0, value=1.0, step=1.0, help="Numeric encoded gender (e.g. 0 or 1)")
-        course = st.number_input("Course (Encoded Value)", min_value=0.0, max_value=50.0, value=2.0, step=1.0, help="Numeric identifier for enrolled program")
-        st.markdown('</div>', unsafe_allow_html=True)
+# Main Page Inputs
+col1, col2 = st.columns(2)
 
-    with col2:
-        st.markdown('<div class="custom-card"><div class="card-title">📚 Study & Attendance</div>', unsafe_allow_html=True)
-        study_hours = st.number_input("Weekly Study Hours", min_value=0.0, max_value=120.0, value=15.0, step=0.5)
-        class_attendance = st.slider("Class Attendance (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
-        study_method = st.number_input("Study Method (Encoded Value)", min_value=0.0, max_value=10.0, value=1.0, step=1.0)
-        internet_access = st.selectbox("Internet Access", options=[(1.0, "Yes (1)"), (0.0, "No (0)")], format_func=lambda x: x[1])[0]
-        st.markdown('</div>', unsafe_allow_html=True)
+with col1:
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.subheader("📚 Study Routines")
+    study_hours = st.slider("Weekly Study Hours", min_value=0.0, max_value=80.0, value=15.0, step=0.5)
+    class_attendance = st.slider("Class Attendance (%)", min_value=0.0, max_value=100.0, value=85.0, step=1.0)
+    
+    study_method_choice = st.selectbox(
+        "Primary Study Method",
+        ["Self-study", "Group Study", "Online Lectures", "Tutoring / Coaching"]
+    )
+    study_method_map = {
+        "Self-study": 0,
+        "Group Study": 1,
+        "Online Lectures": 2,
+        "Tutoring / Coaching": 3
+    }
+    study_method = study_method_map[study_method_choice]
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    with col3:
-        st.markdown('<div class="custom-card"><div class="card-title">🌙 Lifestyle & Environment</div>', unsafe_allow_html=True)
-        sleep_hours = st.number_input("Average Sleep Hours", min_value=0.0, max_value=24.0, value=7.0, step=0.5)
-        sleep_quality = st.slider("Sleep Quality Rating", min_value=1.0, max_value=10.0, value=7.0, step=1.0)
-        facility_rating = st.slider("Facility Rating", min_value=1.0, max_value=10.0, value=8.0, step=1.0)
-        exam_difficulty = st.slider("Exam Difficulty", min_value=1.0, max_value=10.0, value=5.0, step=1.0)
-        st.markdown('</div>', unsafe_allow_html=True)
+with col2:
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.subheader("🛌 Health & Exam Conditions")
+    sleep_hours = st.slider("Daily Sleep Hours", min_value=2.0, max_value=12.0, value=7.0, step=0.5)
+    sleep_quality = st.select_slider("Sleep Quality Rating (1=Poor, 5=Excellent)", options=[1, 2, 3, 4, 5], value=3)
+    facility_rating = st.select_slider("Campus/Facility Rating (1=Poor, 5=Excellent)", options=[1, 2, 3, 4, 5], value=4)
+    exam_difficulty = st.select_slider("Perceived Exam Difficulty (1=Easy, 5=Hard)", options=[1, 2, 3, 4, 5], value=3)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    submit_btn = st.form_submit_button("Predict Score", use_container_width=True)
+# Build DataFrame to match model schema
+input_data = pd.DataFrame([{
+    'age': age,
+    'gender': gender,
+    'course': course,
+    'study_hours': study_hours,
+    'class_attendance': class_attendance,
+    'internet_access': internet_access,
+    'sleep_hours': sleep_hours,
+    'sleep_quality': sleep_quality,
+    'study_method': study_method,
+    'facility_rating': facility_rating,
+    'exam_difficulty': exam_difficulty
+}])
 
-# Inference and Display
-if submit_btn:
-    try:
-        # Features ordered exactly as expected by the trained model:
-        # ['age', 'gender', 'course', 'study_hours', 'class_attendance',
-        #  'internet_access', 'sleep_hours', 'sleep_quality', 'study_method',
-        #  'facility_rating', 'exam_difficulty']
-        input_data = np.array([[
-            float(age),
-            float(gender),
-            float(course),
-            float(study_hours),
-            float(class_attendance),
-            float(internet_access),
-            float(sleep_hours),
-            float(sleep_quality),
-            float(study_method),
-            float(facility_rating),
-            float(exam_difficulty)
-        ]], dtype=np.float64)
+# --- PREDICTION SECTION ---
+st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+st.subheader("🔮 Model Prediction")
 
-        prediction = float(model.predict(input_data)[0])
+pred_col1, pred_col2 = st.columns([1, 1])
 
-        st.markdown(f"""
-        <div class="result-card">
-            <div class="result-title">Predicted Performance Outcome</div>
-            <div class="result-value">{prediction:.2f}</div>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">Inference generated using KNeighborsRegressor</p>
-        </div>
-        """, unsafe_allow_html=True)
+with pred_col1:
+    st.write("Click below to compute the model prediction for current inputs:")
+    predict_button = st.button("🚀 Run Prediction", type="primary", use_container_width=True)
+    auto_predict = st.checkbox("Auto-predict when values change", value=False)
 
-    except Exception as err:
-        st.error(f"Inference error: {err}")
+with pred_col2:
+    if predict_button or auto_predict:
+        try:
+            pred_score = model.predict(input_data)[0]
+            st.markdown(f"""
+                <div class="prediction-card">
+                    <div class="metric-label">Estimated Output / Score</div>
+                    <div class="metric-value">{pred_score:.2f}</div>
+                </div>
+            """, unsafe_allow_html=True)
+        except Exception as err:
+            st.error(f"Prediction failed: {err}")
+    else:
+        st.info("Press **🚀 Run Prediction** or toggle **Auto-predict** to generate a result.")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Feature preview table
+with st.expander("🔍 View Processed Input Values"):
+    st.dataframe(input_data, use_container_width=True)
