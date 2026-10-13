@@ -57,7 +57,7 @@ st.markdown("""
 
 
 @st.cache_resource
-def load_knn_model(model_path="knn.pkl"):
+def load_knn_model(model_path="knnRe.pkl"):
     """Load the pickled KNN regressor."""
     if not os.path.exists(model_path):
         return None
@@ -65,7 +65,7 @@ def load_knn_model(model_path="knn.pkl"):
         return pickle.load(f)
 
 
-model = load_knn_model("knn.pkl")
+model = load_knn_model("knnRe.pkl")
 
 # Header section
 st.title("🎓 Student Performance Predictor")
@@ -73,7 +73,7 @@ st.markdown("Enter student characteristics below to estimate the final performan
 st.write("---")
 
 if model is None:
-    st.error("⚠️ `knn.pkl` not found! Ensure the model file is placed in the exact same directory as `app.py`.")
+    st.error("⚠️ `knnRe.pkl` not found! Ensure the model file is placed in the exact same directory as this script.")
     st.stop()
 
 # --- INPUT SECTION ---
